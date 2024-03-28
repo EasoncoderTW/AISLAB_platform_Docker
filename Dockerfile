@@ -92,7 +92,17 @@ ENV TOOL_PACKAGES curl \
     vim \
     wget \
     sudo \
-    emacs
+    emacs \
+    automake \
+    autotools-dev \
+    libmpc-dev  \
+    libmpfr-dev \
+    libgmp-dev \
+    gperf \
+    patchutils \
+    zlib1g-dev \
+    libexpat-dev \
+    libglib2.0-dev \
 
 ENV ARMNN_PACKAGES scons \
     autoconf \
