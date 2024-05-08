@@ -24,51 +24,94 @@ cat <<EOF
     All projects are in the /workspace directory
     Here is a list of startup commands that you can run in the docker
 
-    startup                             : show the welcome and usage message
+    startup [help]                      : show the welcome and usage message
     startup build-qemu                  : build qemu
     startup build-systemc [version]     : build SystemC library (default version: 2.3.1)
+    startup get-qemu [version]          : download qemu source code (default version: 8.0.0)
     startup get-riscv-gcc               : download riscv-gnu-toolchain Cross Compiler
+    startup get-freertos                : download FreeRTOS source code
+    startup init                        : download and build all the above tools with default versions
 
 EOF
 }
 
 build_qemu(){
-    echo 'build '$state' in '$mountdir
-    cd qemu
-    mkdir -p build || exit 1
-    cd build || exit 1
+    [[ $(qemu-system-riscv64 --version > /dev/null) -eq 0 ]] && exit 0
+    mkdir -p $mountdir/qemu/build || exit 1
+    cd $mountdir/qemu/build || exit 1
     ../configure --enable-debug-info --target-list=riscv64-softmmu --enable-virtfs || exit 1
     make -j $(nproc) || exit 1
 }
 
-get_riscv_gcc(){
-    dir=$mountdir
-    file=riscv64-elf-ubuntu-20.04-gcc-nightly-2024.04.12-nightly.tar.gz
-    [[ -f $file ]] && {
-        echo $file exists in $dir
+get_qemu(){
+    top=$mountdir
+    dir=$top/qemu
+    ver=${1:-8.0.0}
+    [[ -d $dir ]] && {
+        echo $dir exists
     } || {
-        wget https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2024.04.12/$file -O - | tar xvC $dir
+        wget https://download.qemu.org/qemu-$ver.tar.xz -O - | tar xJC $top
+        mv $dir-$ver $dir
     }
 }
 
-if [ $# -eq 0 ]; then
-    usage_message
-fi
+get_riscv_gcc(){
+    top=$mountdir
+    dir=$top/riscv
+    file=riscv64-elf-ubuntu-20.04-gcc-nightly-2024.04.12-nightly.tar.gz
+    [[ -d $dir ]] && {
+        echo $dir exists
+    } || {
+        wget https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2024.04.12/$file -O - | tar zxC $top
+    }
+}
 
-if [[ $state == 'build-qemu' ]]
-then
-    cd $mountdir
-    build_qemu
-fi
+get_freertos(){
+    top=$mountdir
+    dir=$top/FreeRTOS
+    ver=202212.01
+    [[ -d $dir ]] && {
+        echo $dir exists
+    } || {
+        git clone --recurse-submodules https://github.com/FreeRTOS/FreeRTOS.git $dir
+        # wget https://github.com/FreeRTOS/FreeRTOS/archive/refs/tags/$ver.tar.gz -O - | tar zxC $top
+        # mv $dir-$ver $dir
+    }
+}
 
-if [[ $state == 'build-systemc' ]]
-then
-    version=$arg1
-    bash $mountdir/Docker/modules/systemc/systemc.sh $version
-fi
-
-if [[ $state == 'get-riscv-gcc' ]]
-then
-    cd $mountdir
-    get_riscv_gcc
-fi
+case $state in
+    get-qemu)
+        version=$arg1
+        get_qemu $version
+        ;;
+    get-freertos)
+        get_freertos
+        ;;
+    get-riscv-gcc)
+        get_riscv_gcc
+        ;;
+    build-qemu)
+        build_qemu
+        ;;
+    build-systemc)
+        version=$arg1
+        bash $mountdir/Docker/modules/systemc/systemc.sh $version
+        ;;
+    check-machine | check | cm)
+        qemu-system-riscv64 -machine help
+        ;;
+    init)
+        get_qemu
+        get_freertos
+        get_riscv_gcc
+        build_qemu
+        qemu-system-riscv64 -machine help
+        ;;
+    help)
+        usage_message
+        ;;
+    *)
+        echo unknown command: $state
+        usage_message
+        ;;
+esac

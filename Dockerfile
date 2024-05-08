@@ -102,7 +102,7 @@ ENV TOOL_PACKAGES curl \
     patchutils \
     zlib1g-dev \
     libexpat-dev \
-    libglib2.0-dev \
+    libglib2.0-dev
 
 ENV ARMNN_PACKAGES scons \
     autoconf \
@@ -111,7 +111,7 @@ ENV ARMNN_PACKAGES scons \
     cmake \
     colordiff
 
-RUN chmod 1777 /tmp    
+RUN chmod 1777 /tmp
 
 ## Install dependency
 RUN apt-get update
@@ -157,12 +157,13 @@ WORKDIR $mountdir
 RUN touch .in-docker-container
 
 
-ADD startup.sh /
-RUN set -x \
-    && sed -e s@#MOUNTDIR#@mountdir=$mountdir@ /startup.sh \
-    > /usr/local/bin/startup \
-    && chmod 755 /usr/local/bin/startup \
-    && rm /startup.sh
+ADD startup.sh ${mountdir}
+# RUN set -x \
+#     && sed -e s@#MOUNTDIR#@mountdir=$mountdir@ /startup.sh > /usr/local/bin/startup \
+#     && chmod 755 /usr/local/bin/startup \
+#     && rm /startup.sh
+RUN ln -snf $mountdir/startup.sh /usr/local/bin/startup \
+    && chmod 755 /usr/local/bin/startup
 
 USER $NAME
 
@@ -174,11 +175,9 @@ RUN echo "module use $mountdir/docker/modules" >> ~/.bashrc
 RUN echo eval /usr/local/bin/startup >> ~/.bashrc
 RUN echo "export PS1=\"\[\e[0;31m\]\u@\[\e[m\e[0;34m\]\h\[\e[m \e[0;32m\] \w[\!]\$\[\e[m\]  \"" >> ~/.bashrc
 
-
-
 RUN echo "export PATH=\"$mountdir/qemu/build/riscv64-softmmu:\$PATH\"" >> ~/.bashrc \
     && echo "export PATH=\"$mountdir/qemu/build/riscv32-softmmu:\$PATH\"" >> ~/.bashrc \
-    && echo "export PATH=\"$mountdir/riscv/bin:\$PATH\"" >> ~/.bashrc 
+    && echo "export PATH=\"$mountdir/riscv/bin:\$PATH\"" >> ~/.bashrc
 
 CMD ["/bin/bash"]
 WORKDIR /workspace
