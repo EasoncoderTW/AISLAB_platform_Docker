@@ -168,7 +168,7 @@ RUN echo "export PS1=\"\[\e[0;31m\]\u@\[\e[m\e[0;34m\]\h\[\e[m \e[0;32m\] \w[\!]
 
 RUN echo "export PATH=\"$mountdir/qemu/build/riscv64-softmmu:\$PATH\"" >> ~/.bashrc \
     && echo "export PATH=\"$mountdir/qemu/build/riscv32-softmmu:\$PATH\"" >> ~/.bashrc \
-    && echo "export PATH=\"$mountdir/riscv-gnu-toolchain/build/bin:\$PATH\"" >> ~/.bashrc 
+    && echo "export PATH=\"$mountdir/riscv/bin:\$PATH\"" >> ~/.bashrc 
 
 CMD ["/bin/bash"]
 WORKDIR /workspace
