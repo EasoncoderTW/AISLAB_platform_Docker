@@ -36,11 +36,14 @@ EOF
 }
 
 build_qemu(){
-    [[ $(qemu-system-riscv64 --version > /dev/null) -eq 0 ]] && exit 0
-    mkdir -p $mountdir/qemu/build || exit 1
-    cd $mountdir/qemu/build || exit 1
-    ../configure --enable-debug-info --target-list=riscv64-softmmu --enable-virtfs || exit 1
-    make -j $(nproc) || exit 1
+    [[ -f $mountdir/qemu/build/riscv64-softmmu/qemu-system-riscv64 ]]  && {
+        echo $(which qemu-system-riscv64) exists
+    } || {
+        mkdir -p $mountdir/qemu/build || exit 1
+        cd $mountdir/qemu/build || exit 1
+        ../configure --enable-debug-info --target-list=riscv64-softmmu --enable-virtfs || exit 1
+        make -j $(nproc) || exit 1
+    } 
 }
 
 get_qemu(){
@@ -74,8 +77,6 @@ get_freertos(){
         echo $dir exists
     } || {
         git clone --recurse-submodules https://github.com/FreeRTOS/FreeRTOS.git $dir
-        # wget https://github.com/FreeRTOS/FreeRTOS/archive/refs/tags/$ver.tar.gz -O - | tar zxC $top
-        # mv $dir-$ver $dir
     }
 }
 
