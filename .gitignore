@@ -2,3 +2,8 @@ projects/
 FreeRTOS*/
 qemu*/
 riscv*/
+linux/
+rv64-linux/
+opensbi/
+busybox/
+.vscode/

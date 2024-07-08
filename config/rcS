@@ -1,0 +1,10 @@
+#!/bin/sh
+
+mount -t proc none /proc
+mount -t sysfs none /sys
+/sbin/mdev -s
+mkdir -p /mnt/shared
+mount -t 9p -o trans=virtio,version=9p2000.L host0 /mnt/shared
+
+hostname aislabvp
+

@@ -91,7 +91,7 @@ ENV TOOL_PACKAGES curl \
     telnet \
     vim \
     wget \
-    sudo \
+    tmux \
     emacs \
     automake \
     autotools-dev \
@@ -175,9 +175,9 @@ RUN echo "module use $mountdir/docker/modules" >> ~/.bashrc
 RUN echo eval /usr/local/bin/startup >> ~/.bashrc
 RUN echo "export PS1=\"\[\e[0;31m\]\u@\[\e[m\e[0;34m\]\h\[\e[m \e[0;32m\] \w[\!]\$\[\e[m\]  \"" >> ~/.bashrc
 
-RUN echo "export PATH=\"$mountdir/qemu/build/riscv64-softmmu:\$PATH\"" >> ~/.bashrc \
-    && echo "export PATH=\"$mountdir/qemu/build/riscv32-softmmu:\$PATH\"" >> ~/.bashrc \
-    && echo "export PATH=\"$mountdir/riscv/bin:\$PATH\"" >> ~/.bashrc
+RUN echo "export PATH=\"$mountdir/qemu/build:\$PATH\"" >> ~/.bashrc \
+    && echo "export PATH=\"$mountdir/riscv/bin:\$PATH\"" >> ~/.bashrc \
+    && echo "export PATH=\"$mountdir/rv64-linux/bin:\$PATH\"" >> ~/.bashrc
 
 CMD ["/bin/bash"]
 WORKDIR /workspace
