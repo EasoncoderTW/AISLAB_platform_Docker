@@ -41,16 +41,26 @@ cat <<EOF
     startup build-busybox               : build busybox source code
     ----------------   Task   --------------------------------------------------------------
     startup init                        : download and build all the above tools with default versions
+    startup rebuild-qemu                : rebuild qemu from source code
 EOF
 }
 
+rebuild_qemu(){
+    echo ---------------- rebuild qemu ----------------
+    rm -rf $mountdir/qemu/build || exit 1
+    mkdir -p $mountdir/qemu/build || exit 1
+    cd $mountdir/qemu/build || exit 1
+    ../configure --enable-debug-info --target-list=riscv64-softmmu,riscv32-softmmu --enable-virtfs || exit 1
+    make -j $(nproc) || exit 1
+}
+
 build_qemu(){
-    [[ -f $mountdir/qemu/build/riscv64-softmmu/qemu-system-riscv64 ]]  && {
+    [[ -f $mountdir/qemu/build/qemu-system-riscv64 ]]  && {
         echo $(which qemu-system-riscv64) exists
     } || {
         mkdir -p $mountdir/qemu/build || exit 1
         cd $mountdir/qemu/build || exit 1
-        ../configure --enable-debug-info --target-list=riscv64-softmmu,riscv32-softmmu --enable-virtfs || exit 1
+        ../configure --enable-debug-info --target-list=riscv64-softmmu, --enable-virtfs || exit 1
         make -j $(nproc) || exit 1
     } 
 }
@@ -215,6 +225,9 @@ case $state in
     build-systemc)
         version=$arg1
         bash $mountdir/Docker/modules/systemc/systemc.sh $version
+        ;;
+    rebuild-qemu)
+        rebuild_qemu
         ;;
     check-machine | check | cm)
         qemu-system-riscv64 -machine help
