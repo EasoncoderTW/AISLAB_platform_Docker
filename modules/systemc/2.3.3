@@ -1,6 +1,6 @@
 #%Module1.0
 
-set version 2.3.1
+set version 2.3.3
 set moduleInfo "SystemC library v$version"
 
 proc ModulesHelp { } {
@@ -10,7 +10,7 @@ proc ModulesHelp { } {
 
 module-whatis $moduleInfo
 
-set systemc_root /workspace/system/aionchip/systemc/systemc-$version
+set systemc_root /workspace/system/systemc/systemc-$version
 setenv SYSTEMC_ROOT $systemc_root
 prepend-path LD_LIBRARY_PATH $systemc_root/lib-linux64
 

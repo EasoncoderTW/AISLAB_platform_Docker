@@ -10,12 +10,11 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <stdio.h>
-#define SHMSZ     40
-#include <signal.h>
+#define SHMSZ     24
 
-#define TYPE_ADDER "adder"
+#define TYPE_ADDER "mmio_bridge"
 #define ADDER(obj) \
-    OBJECT_CHECK(AdderState, (obj), TYPE_ADDER)
+    OBJECT_CHECK(MMIOBridgeState, (obj), TYPE_ADDER)
 
 /* Register map */
 #define REG_ID                 0x0
@@ -32,7 +31,7 @@
 #define INT_ENABLED            BIT(0)
 #define INT_BUFFER_DEQ         BIT(1)
 
-typedef struct AdderState {
+typedef struct MMIOBridgeState {
     SysBusDevice parent_obj; // is a system Bus device (MMIO)
     MemoryRegion iomem;
     qemu_irq irq;
@@ -47,31 +46,23 @@ typedef struct AdderState {
     key_t key;
     void* shm;
     int *mmio;
-} AdderState;
+} MMIOBridgeState;
 
 /* Design functionality */
-static void adder_set_irq(AdderState *s, int irq)
+static void mmio_bridge_set_irq(MMIOBridgeState *s, int irq)
 {
     s->status = irq;
     qemu_set_irq(s->irq, 1);
 }
 
-static void adder_clr_irq(AdderState *s)
+static void mmio_bridge_clr_irq(MMIOBridgeState *s)
 {
     qemu_set_irq(s->irq, 0);
 }
 
-AdderState *glob_s;
-/* Adder interrupt service routine */
-void adder_set_isr(int signum)
+static uint64_t mmio_bridge_read(void *opaque, hwaddr offset, unsigned size)
 {
-    printf("[DEBUG] adder_set_isr signum = %d\n",signum);
-    adder_set_irq(glob_s, INT_BUFFER_DEQ);
-}
-
-static uint64_t adder_read(void *opaque, hwaddr offset, unsigned size)
-{
-    AdderState *s = (AdderState *)opaque;
+    MMIOBridgeState *s = (MMIOBridgeState *)opaque;
     bool is_enabled = s->init & CHIP_EN;
 
     if (!is_enabled) {
@@ -94,7 +85,7 @@ static uint64_t adder_read(void *opaque, hwaddr offset, unsigned size)
         //return s->input_B;
         return s->mmio[1];
     case REG_INT_STATUS:
-        adder_clr_irq(s);
+        mmio_bridge_clr_irq(s);
         return s->status;
     default:
         break;
@@ -103,53 +94,48 @@ static uint64_t adder_read(void *opaque, hwaddr offset, unsigned size)
     return 0;
 }
 
-static void adder_write(void *opaque, hwaddr offset, uint64_t value,
+static void mmio_bridge_write(void *opaque, hwaddr offset, uint64_t value,
                           unsigned size)
 {
-    AdderState *s = (AdderState *)opaque;
+    MMIOBridgeState *s = (MMIOBridgeState *)opaque;
 
     switch (offset) {
     case REG_INIT:
         s->init = (int)value;
 
         if (value)
-            adder_set_irq(s, INT_ENABLED);
+            mmio_bridge_set_irq(s, INT_ENABLED);
 
         break;
     case REG_A:
         //s->input_A = (int)value;
         //s->output = s->input_A + s-> input_B;
         s->mmio[0] = (int)value;
-        glob_s=s;
-        kill(SIGINT, s->mmio[4]);
-        //adder_set_irq(s, INT_BUFFER_DEQ);
+        mmio_bridge_set_irq(s, INT_BUFFER_DEQ);
         break;
     case REG_B:
         //s->input_B = (int)value;
         //s->output = s->input_A + s-> input_B;
         s->mmio[1] = (int)value;
-        glob_s=s;
-        kill(SIGINT, s->mmio[4]);
-        //adder_set_irq(s, INT_BUFFER_DEQ);
+        mmio_bridge_set_irq(s, INT_BUFFER_DEQ);
         break;
     default:
         break;
     }
 }
 
-static const MemoryRegionOps adder_ops = {
-    .read = adder_read,
-    .write = adder_write,
+static const MemoryRegionOps mmio_bridge_ops = {
+    .read = mmio_bridge_read,
+    .write = mmio_bridge_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* How to realize the device */
-static void adder_realize(DeviceState *dev, Error **errp)
+static void mmio_bridge_realize(DeviceState *dev, Error **errp)
 {
-    printf("[DEBUG] adder_realize\n");
-    AdderState *s = ADDER(dev);
+    MMIOBridgeState *s = ADDER(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    memory_region_init_io(&s->iomem, OBJECT(s), &adder_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &mmio_bridge_ops, s,
                           TYPE_ADDER, 0x200);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
@@ -169,32 +155,27 @@ static void adder_realize(DeviceState *dev, Error **errp)
         exit(1);
     }
     s->mmio = (int*)(s->shm);
-    s->mmio[3] = getpid();
-    printf("[DEBUG] pid = %d\n",s->mmio[3]);
-    // siganl
-    signal(SIGINT,adder_set_isr);
-
 }
 
 /* Enclosure the device into class */
-static void adder_class_init(ObjectClass *klass, void *data)
+static void mmio_bridge_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->realize = adder_realize;
+    dc->realize = mmio_bridge_realize;
 }
 
 /* setting device info and class link */
-static const TypeInfo adder_info = {
+static const TypeInfo mmio_bridge_info = {
     .name          = TYPE_ADDER,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AdderState),
-    .class_init    = adder_class_init,
+    .instance_size = sizeof(MMIOBridgeState),
+    .class_init    = mmio_bridge_class_init,
 };
 
 /* register device */
-static void adder_register_types(void)
+static void mmio_bridge_register_types(void)
 {
-    type_register_static(&adder_info);
+    type_register_static(&mmio_bridge_info);
 }
 
-type_init(adder_register_types);
+type_init(mmio_bridge_register_types);

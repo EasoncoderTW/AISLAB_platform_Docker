@@ -7,3 +7,7 @@ rv64-linux/
 opensbi/
 busybox/
 .vscode/
+system/
+log
+*.dtb
+*.dts
