@@ -47,8 +47,8 @@ EOF
 
 rebuild_qemu(){
     echo ---------------- rebuild qemu ----------------
-    rm -rf $mountdir/qemu/build || exit 1
-    mkdir -p $mountdir/qemu/build || exit 1
+    #rm -rf $mountdir/qemu/build || exit 1
+    #mkdir -p $mountdir/qemu/build || exit 1
     cd $mountdir/qemu/build || exit 1
     ../configure --enable-debug-info --target-list=riscv64-softmmu,riscv32-softmmu --enable-virtfs || exit 1
     make -j $(nproc) || exit 1

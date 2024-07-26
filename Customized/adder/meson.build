@@ -1,5 +1,6 @@
 # adder
 system_ss.add(when: 'CONFIG_ADDER', if_true: files('adder.c'))
+system_ss.add(when: 'CONFIG_ADDER', if_true: files('vpipc_pipe.c'))
 
 system_ss.add(when: 'CONFIG_APPLESMC', if_true: files('applesmc.c'))
 system_ss.add(when: 'CONFIG_EDU', if_true: files('edu.c'))

@@ -4,78 +4,64 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "qemu/bitops.h"
+#include "hw/misc/adder.h"
+#include "qemu/thread.h"
 
-// IPC
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <stdio.h>
-#define SHMSZ     40
-#include <signal.h>
+#include "hw/misc/vpipc_pipe.h"
 
-#define TYPE_ADDER "adder"
-#define ADDER(obj) \
-    OBJECT_CHECK(AdderState, (obj), TYPE_ADDER)
+/* QEMU Thread */
+static void *tcp_thread_func(void *opaque) {
+    printf("[DEBUG] tcp_thread_func\n");
+    AdderDevice *dev = (AdderDevice *)opaque;
+    // vpipc
+    dev->vpm = create_vp_module(MODULE_TYPE_SERVER);
+    struct vp_transfer vpt[3];
+    do
+    {
+        vp_wait(&dev->vpm, vpt, 1);
+        // Sleep for 10 ms
+        qemu_mutex_lock(&dev->mutex);
+        qemu_cond_timedwait(&dev->cond, &dev->mutex, 10);
+        qemu_mutex_unlock(&dev->mutex);
+        //printf("[DEBUG] Waiting...\r");
+    }
+    while (!client_is_connect(dev->vpm));
 
-/* Register map */
-#define REG_ID                 0x0
-#define CHIP_ID                0xf001
-
-#define REG_INIT               0x4
-#define CHIP_EN                BIT(1)
-
-#define REG_A                  0x8
-#define REG_B                  0xc
-#define REG_O                  0x10
-
-#define REG_INT_STATUS         0x14
-#define INT_ENABLED            BIT(0)
-#define INT_BUFFER_DEQ         BIT(1)
-
-typedef struct AdderState {
-    SysBusDevice parent_obj; // is a system Bus device (MMIO)
-    MemoryRegion iomem;
-    qemu_irq irq;
-    uint32_t input_A;
-    uint32_t input_B;
-    uint32_t output;
-    uint32_t id;
-    uint32_t init;
-    uint32_t status;
-    // IPC
-    int shmid;
-    key_t key;
-    void* shm;
-    int *mmio;
-} AdderState;
+    printf("[AISLAB VP] SystemC socket Connectted\n");
+    while (dev->thread_running) {
+        // Sleep for 10 ms
+        qemu_mutex_lock(&dev->mutex);
+        qemu_cond_timedwait(&dev->cond, &dev->mutex, 10);
+        qemu_mutex_unlock(&dev->mutex);
+    }
+    return NULL;
+}
 
 /* Design functionality */
-static void adder_set_irq(AdderState *s, int irq)
+static void adder_set_irq(AdderDevice *s, int irq)
 {
     s->status = irq;
     qemu_set_irq(s->irq, 1);
 }
 
-static void adder_clr_irq(AdderState *s)
+static void adder_clr_irq(AdderDevice *s)
 {
     qemu_set_irq(s->irq, 0);
 }
 
-AdderState *glob_s;
-/* Adder interrupt service routine */
-void adder_set_isr(int signum)
-{
-    printf("[DEBUG] adder_set_isr signum = %d\n",signum);
-    adder_set_irq(glob_s, INT_BUFFER_DEQ);
-}
-
 static uint64_t adder_read(void *opaque, hwaddr offset, unsigned size)
 {
-    AdderState *s = (AdderState *)opaque;
+    AdderDevice *s = (AdderDevice *)opaque;
     bool is_enabled = s->init & CHIP_EN;
+    struct vp_transfer_data vpt_send, vpt_recv;
 
     if (!is_enabled) {
         fprintf(stderr, "Device is disabled\\n");
+        return 0;
+    }
+
+    if (!client_is_connect(s->vpm)) {
+        fprintf(stderr, "client is not connect\n");
         return 0;
     }
 
@@ -86,13 +72,16 @@ static uint64_t adder_read(void *opaque, hwaddr offset, unsigned size)
         return s->init;
     case REG_O:
         //return s->output;
-        return s->mmio[2];
     case REG_A:
         //return s->input_A;
-        return s->mmio[0];
     case REG_B:
         //return s->input_B;
-        return s->mmio[1];
+        vpt_send.type = VP_READ;
+        vpt_send.status = VP_OK;
+        vpt_send.addr = offset;
+        vpt_send.data = 0;
+        vpt_recv = vp_b_transfer(&s->vpm, vpt_send);
+        return vpt_recv.data;
     case REG_INT_STATUS:
         adder_clr_irq(s);
         return s->status;
@@ -106,7 +95,13 @@ static uint64_t adder_read(void *opaque, hwaddr offset, unsigned size)
 static void adder_write(void *opaque, hwaddr offset, uint64_t value,
                           unsigned size)
 {
-    AdderState *s = (AdderState *)opaque;
+    AdderDevice *s = (AdderDevice *)opaque;
+    struct vp_transfer_data vpt_send;
+
+    if (!client_is_connect(s->vpm)) {
+        fprintf(stderr, "client is not connect\n");
+        return;
+    }
 
     switch (offset) {
     case REG_INIT:
@@ -119,18 +114,17 @@ static void adder_write(void *opaque, hwaddr offset, uint64_t value,
     case REG_A:
         //s->input_A = (int)value;
         //s->output = s->input_A + s-> input_B;
-        s->mmio[0] = (int)value;
-        glob_s=s;
-        kill(SIGINT, s->mmio[4]);
         //adder_set_irq(s, INT_BUFFER_DEQ);
-        break;
+        //break;
     case REG_B:
         //s->input_B = (int)value;
         //s->output = s->input_A + s-> input_B;
-        s->mmio[1] = (int)value;
-        glob_s=s;
-        kill(SIGINT, s->mmio[4]);
-        //adder_set_irq(s, INT_BUFFER_DEQ);
+        vpt_send.type = VP_WRITE;
+        vpt_send.status = VP_OK;
+        vpt_send.addr = offset;
+        vpt_send.data = value;
+        vp_b_transfer(&s->vpm, vpt_send);
+        adder_set_irq(s, INT_BUFFER_DEQ);
         break;
     default:
         break;
@@ -143,52 +137,67 @@ static const MemoryRegionOps adder_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+/* How to unrealize the device */
+static void adder_instance_finalize(Object *obj)
+{
+    printf("[DEBUG] adder_instance_finalize\n");  // Debug statement
+}
+
+/* How to unrealize the device */
+static void adder_instance_init(Object *obj)
+{
+    printf("[DEBUG] adder_instance_init\n");
+}
+
+
 /* How to realize the device */
 static void adder_realize(DeviceState *dev, Error **errp)
 {
     printf("[DEBUG] adder_realize\n");
-    AdderState *s = ADDER(dev);
+    AdderDevice *s = ADDER(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     memory_region_init_io(&s->iomem, OBJECT(s), &adder_ops, s,
                           TYPE_ADDER, 0x200);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
-    
+
+    // thread
+    qemu_mutex_init(&s->mutex);
+    qemu_cond_init(&s->cond);
+    s->thread_running = true;
+    qemu_thread_create(&s->thread, "tcp_thread", tcp_thread_func, s, QEMU_THREAD_DETACHED);
+    printf("[DEBUG] qemu_thread_create\n");
+}
+
+static void adder_reset(DeviceState *dev)
+{
+    printf("[DEBUG] adder_reset\n");
+    AdderDevice *s = ADDER(dev);
     // Initialize the device
     s->input_A = 0;
     s->input_B = 0;
     s->output = 0;
-    // IPC init
-    s->key = 5678;
-    if ((s->shmid = shmget(s->key, SHMSZ, 0666)) < 0) {
-        perror("shmget");
-        exit(1);
-    }
-    if ((s->shm = shmat(s->shmid, NULL, 0)) == (char*) - 1) {
-        perror("shmat");
-        exit(1);
-    }
-    s->mmio = (int*)(s->shm);
-    s->mmio[3] = getpid();
-    printf("[DEBUG] pid = %d\n",s->mmio[3]);
-    // siganl
-    signal(SIGINT,adder_set_isr);
-
 }
+
 
 /* Enclosure the device into class */
 static void adder_class_init(ObjectClass *klass, void *data)
 {
+    printf("[DEBUG] adder_class_init\n");
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = adder_realize;
+    dc->reset = adder_reset;
 }
 
 /* setting device info and class link */
 static const TypeInfo adder_info = {
     .name          = TYPE_ADDER,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AdderState),
     .class_init    = adder_class_init,
+    .instance_size = sizeof(AdderDevice),
+    .class_size    = sizeof(AdderDeviceClass),
+    .instance_init = adder_instance_init,
+    .instance_finalize = adder_instance_finalize,
 };
 
 /* register device */
