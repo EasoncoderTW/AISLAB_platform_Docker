@@ -1,5 +1,6 @@
 # mmio_bridge
-system_ss.add(when: 'CONFIG_MMIO_BRIDGE', if_true: files('mmio_bridge.c'))
+system_ss.add(when: 'CONFIG_MMIO_BUS', if_true: files('mmio_bus.c'))
+system_ss.add(when: 'CONFIG_MMIO_BUS', if_true: files('vpipc.c'))
 
 system_ss.add(when: 'CONFIG_APPLESMC', if_true: files('applesmc.c'))
 system_ss.add(when: 'CONFIG_EDU', if_true: files('edu.c'))

@@ -1,4 +1,4 @@
-config MMIO_BRIDGE
+config MMIO_BUS
     bool
 
 config APPLESMC

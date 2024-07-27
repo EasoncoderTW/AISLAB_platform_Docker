@@ -17,7 +17,7 @@
 #include <signal.h>
 #include <sys/epoll.h> // for epoll_create1()
 
-#include "hw/misc/vpipc_pipe.h"
+#include "hw/misc/vpipc.h"
 
 /*
  * 
