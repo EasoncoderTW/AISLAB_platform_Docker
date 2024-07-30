@@ -110,10 +110,6 @@ build_busybox(){
         mkdir -p /tmp/root || exit 1
         sudo mount root.ext2 /tmp/root || exit 1
         sudo rsync -avr _install/* /tmp/root || exit 1
-        cd /tmp/root && sudo mkdir -p proc sys dev etc etc/init.d || exit 1
-        cd /tmp/root && sudo cp $mountdir/config/rcS etc/init.d/rcS || exit 1 # active script
-        cd /tmp/root && sudo cp $mountdir/config/bashrc ./.bashrc || exit 1 # bashrc
-        sudo chmod +x /tmp/root/etc/init.d/rcS || exit 1
         cd $mountdir/busybox  || exit 1
         sudo umount /tmp/root || exit 1
     }

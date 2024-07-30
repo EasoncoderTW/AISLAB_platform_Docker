@@ -16,7 +16,7 @@ OpenSBI（開源監督者二進制接口）是一個提供 RISC-V 監督者二�
 
 #### 步驟 1：安裝前置需求
 
-確保您的系統上安裝了必要的工具：
+確保系統上安裝了必要的工具： riscv cross compiler for linux
 
 ```sh
 # riscv-gnu-toolchain
@@ -25,10 +25,12 @@ cd riscv-gnu-toolchain
 ./configure --prefix=$RISCV_DEST --with-arch=rv64gc --with-abi=lp64d --disable-gdb
 make -j$(nproc) linux
 ```
+- `$RISCV_DEST` 為 toolchain 要安裝的位置，本 Project 預設為 `rv64-linux`。
+- `rv64-linux/bin` 需要加入至 `$PATH` 當中。
 
-#### 步驟 2：Clone OpenSBI 存儲庫
+#### 步驟 2：Clone OpenSBI repo
 
-從 GitHub clone OpenSBI 存儲庫：
+從 GitHub clone OpenSBI repo:
 
 ```sh
 git clone https://github.com/riscv/opensbi.git
@@ -43,9 +45,10 @@ cd opensbi
 make PLATFORM=generic CROSS_COMPILE=riscv64-unknown-linux-gnu- O=build -j$(nproc) [-FW_PAYLOAD_PATH=$YOUR_PAYLOAD.bin]
 ```
 - device-tree based: 通用
-- 這將在 `build/platform/generic/firmware` 目錄中生成 OpenSBI 固件二進制文件。
+- 這將在 `build/platform/generic/firmware` 目錄中生成 OpenSBI Binary File。
+- YOUR_PAYLOAD.bin 是一個你想在 OpenSBI 開機後想起動的程式，可以是一個簡單的 helloworld 也可以是 Linux OS
 
-- 檢查 ELF file
+- 檢查 ELF file 是否存在
 ```
 riscv64-unknown-linux-gnu-readelf build/platform/fw_payload.bin -h
 ```
@@ -186,6 +189,14 @@ hostname aislabvp
 ```sh
 sudo chmod +x /tmp/root/etc/init.d/rcS
 ```
+加入動態函式庫 `/lib`
+```sh
+cd /tmp/root && sudo cp -r /workspace/rv64-linux/sysroot/lib ./
+cd /tmp/root && sudo cp -r /workspace/rv64-linux/sysroot/etc ./
+cd /tmp/root && sudo cp -r /workspace/rv64-linux/sysroot/sbin ./
+cd /tmp/root && sudo cp -r /workspace/rv64-linux/sysroot/usr ./
+cd /tmp/root && sudo cp -r /workspace/rv64-linux/sysroot/var ./
+```
 卸載 root.exts
 ```sh
 sudo umount /tmp/root
@@ -209,8 +220,7 @@ qemu-system-riscv64 \
 將 `$PATH_TO_OPENSBI`、`$PATH_TO_LINUX`、`$PATH_TO_BUSYBOX` 換成對應的安裝路徑
 
 1. 使用 `fw_jump.bin` 作為 bios
-2. 使用 `Image` 為 kernel
-3. `./shared` 為與 qemu 內部共享的儲存空間
+2. 使用 `Image` 為 Linux kernel
+3. `./shared` 為與 qemu 內部共享的儲存空間 (為了精簡系統，因此沒有安裝 gcc 在系統中，需要使用 cross-compiler 在外部編譯後透過 shared 資料夾共享)
 
-通過這些步驟，應該能夠成功地移植 OpenSBI 和 Linux，並在 QEMU 模擬的 RISC-V 環境中運行它們。
-
+通過這些步驟，應該能夠成功地移植 OpenSBI 和 Linux，並在 QEMU 模擬的 RISC-V 環境中執行它們。

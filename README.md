@@ -80,12 +80,20 @@ $ cd /workspace/Customized
 $ ./setup_aislab_soc.sh
 $ startup rebuild-qemu
 ```
-
-Setup Customized Device
+Setup Customized systemC Device
 - TBD
 
-## Driver
-TBD
-
 ## Software
-TBD
+Setup Linux OS and Root File System
+```sh
+# In docker env
+$ cd /workspace/VPqemu
+$ ./setup_qemu.sh
+```
+Run QEMU simulator
+```sh
+# In docker env
+$ cd /workspace/VPqemu
+$ ./run_qemu.sh
+```
+
