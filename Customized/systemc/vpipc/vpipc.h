@@ -47,7 +47,10 @@ extern const char* VP_Type_str[];
 
 struct vp_transfer_data{
     uint64_t type;
-    uint64_t status;
+    union {
+        uint64_t status;
+        uint64_t length;
+    };
     uint64_t addr;
     uint64_t data;
 };

@@ -46,7 +46,7 @@ static uint64_t mmio_bus_read(void *opaque, hwaddr offset, unsigned size)
 
     /* setting vp transfer data*/
     vpt_send.type = VP_READ;
-    vpt_send.status = VP_OK; // ignore
+    vpt_send.length = size;
     vpt_send.addr = offset;
     vpt_send.data = 0; // ignore
     
@@ -54,15 +54,14 @@ static uint64_t mmio_bus_read(void *opaque, hwaddr offset, unsigned size)
     vpt_recv = vp_b_transfer(&s->vpm, vpt_send);
     
     /* check recv type and status */
-    if(vpt_recv.type != VP_READ_RESP || vpt_send.status != VP_OK){
+    if(vpt_recv.type != VP_READ_RESP || vpt_recv.status != VP_OK){
         fprintf(stderr, "mmio_bus read error through the vpipc\n");
     }
 
     return vpt_recv.data;
 }
 
-static void mmio_bus_write(void *opaque, hwaddr offset, uint64_t value,
-                          unsigned size)
+static void mmio_bus_write(void *opaque, hwaddr offset, uint64_t value, unsigned size)
 {
     MMIOBusDevice *s = (MMIOBusDevice *)opaque;
     struct vp_transfer_data vpt_send, vpt_recv;
@@ -74,14 +73,14 @@ static void mmio_bus_write(void *opaque, hwaddr offset, uint64_t value,
 
     /* setting vp transfer data*/
     vpt_send.type = VP_WRITE;
-    vpt_send.status = VP_OK;
+    vpt_send.length = size;
     vpt_send.addr = offset;
     vpt_send.data = value;
     /* blocking transfer */
     vpt_recv = vp_b_transfer(&s->vpm, vpt_send);
     
     /* check recv type and status */
-    if(vpt_recv.type != VP_WRITE_RESP || vpt_send.status != VP_OK){
+    if(vpt_recv.type != VP_WRITE_RESP || vpt_recv.status != VP_OK){
         fprintf(stderr, "mmio_bus write error through the vpipc\n");
     }
 }

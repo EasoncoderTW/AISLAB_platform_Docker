@@ -17,7 +17,7 @@
 #include <signal.h>
 #include <sys/epoll.h> // for epoll_create1()
 
-#include "vpipc.h"
+#include "vpipc/vpipc.h"
 
 /*
  * 
@@ -238,7 +238,7 @@ int vp_wait(struct vp_ipc_module *vpm, struct vp_transfer *vpt, int timeout)
                 // Connection closed by client
                 printf("[VPIPC] Server disconnected, socket fd: %d\n", vpm->sock_fd);
                 close(vpm->sock_fd);
-                exit(EXIT_FAILURE);
+                vpm->sock_fd = -1;
             } else if(valread != sizeof(recv_vpt)){
                 printf("[VPIPC] read size error : %d\n", valread);
             } else {
