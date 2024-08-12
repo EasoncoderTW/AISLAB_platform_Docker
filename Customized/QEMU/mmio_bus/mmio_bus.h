@@ -13,6 +13,7 @@
 
 #define TYPE_MMIO_BUS "mmio_bus"
 #define MMIO_SIZE 0x6000000
+#define MMIO_ADDR 0x6000000
 
 
 #define MMIO_BUS(obj) \

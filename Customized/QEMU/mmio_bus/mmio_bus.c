@@ -9,29 +9,78 @@
 
 #include "hw/misc/vpipc.h"
 
-/* QEMU Thread */
-static void *tcp_thread_func(void *opaque) {
-    printf("[DEBUG] tcp_thread_func\n");
-    MMIOBusDevice *dev = (MMIOBusDevice *)opaque;
-    
-    while (dev->thread_running) {
-        // Sleep for 10 ms
-        qemu_mutex_lock(&dev->mutex);
-        qemu_cond_timedwait(&dev->cond, &dev->mutex, 10);
-        qemu_mutex_unlock(&dev->mutex);
-    }
-    return NULL;
-}
-
 /* Design functionality */
 static void mmio_bus_set_irq(MMIOBusDevice *s, int irq)
 {
-    qemu_set_irq(s->irq, 1);
+    qemu_set_irq(s->irq, irq);
 }
 
 static void mmio_bus_clr_irq(MMIOBusDevice *s)
 {
     qemu_set_irq(s->irq, 0);
+}
+
+
+/* QEMU Thread */
+static void *tcp_thread_func(void *opaque) {
+    printf("[DEBUG] tcp_thread_func\n");
+    MMIOBusDevice *dev = (MMIOBusDevice *)opaque;
+    int num;
+    struct vp_transfer vpt[3];
+    struct vp_transfer vpt_resp;
+
+    qemu_mutex_lock(&dev->mutex);
+    while (dev->thread_running) {
+        // Sleep for 10 ms
+        qemu_cond_timedwait(&dev->cond, &dev->mutex, 10);
+        num = vp_wait(&(dev->vpm), vpt, 1);
+        for(int i = 0;i<num;i++)
+        {
+            vpt_resp.sock_fd = vpt[i].sock_fd;
+
+            //printf("[QEMU] Type: %s, Status: %ld, Address: 0x%016lx, Data: 0x%016lx\n", VP_Type_str[vpt[i].data.type], vpt[i].data.status, vpt[i].data.addr, vpt[i].data.data);
+
+            switch (vpt[i].data.type)
+            {
+                case VP_WRITE:
+                    // Use CPU physical addreass write
+                    // (hwaddr addr, void buf, hwaddr len)
+                    uint64_t value = (vpt[i].data.data);
+                    cpu_physical_memory_write(vpt[i].data.addr, &value, vpt[i].data.length);
+                    vpt_resp.data.type = VP_WRITE_RESP;
+                    vpt_resp.data.status = VP_OK;
+                    vpt_resp.data.addr = vpt[i].data.addr;
+                    break;
+                case VP_READ:
+                    // Use CPU physical addreass reads
+                    // (hwaddr addr, void buf, hwaddr len)
+                    uint64_t value;
+                    cpu_physical_memory_read(vpt[i].data.addr, &value, vpt[i].data.length);
+                    vpt_resp.data.data = value;
+                    vpt_resp.data.type = VP_READ_RESP;
+                    vpt_resp.data.status = VP_OK;
+                    vpt_resp.data.addr = vpt[i].data.addr;
+                    break;
+                case VP_RAISE_IRQ:
+                    // Use CPU physical addreass reads
+                    // (hwaddr addr, void buf, hwaddr len)
+                    mmio_bus_set_irq(dev, vpt[i].data.data);
+                    vpt_resp.data.type = VP_RAISE_IRQ_RESP;
+                    vpt_resp.data.status = VP_OK;
+                    vpt_resp.data.addr = 0;
+                    vpt_resp.data.data = 0;
+                    break;
+                default:
+                    vpt_resp.data.type = VP_ERROR;
+                    vpt_resp.data.status = VP_FAIL;
+                    break;
+            }
+            vp_nb_response(&vpt_resp);
+
+        }
+    }
+    qemu_mutex_unlock(&dev->mutex);
+    return NULL;
 }
 
 static uint64_t mmio_bus_read(void *opaque, hwaddr offset, unsigned size)
@@ -47,12 +96,15 @@ static uint64_t mmio_bus_read(void *opaque, hwaddr offset, unsigned size)
     /* setting vp transfer data*/
     vpt_send.type = VP_READ;
     vpt_send.length = size;
-    vpt_send.addr = offset;
+    vpt_send.addr = MMIO_ADDR + offset;
     vpt_send.data = 0; // ignore
-    
+
     /* blocking transfer */
+    qemu_mutex_lock(&s->mutex);
+    //printf("[QEMU] mmio_bus_read\n");
     vpt_recv = vp_b_transfer(&s->vpm, vpt_send);
-    
+    qemu_mutex_unlock(&s->mutex);
+
     /* check recv type and status */
     if(vpt_recv.type != VP_READ_RESP || vpt_recv.status != VP_OK){
         fprintf(stderr, "mmio_bus read error through the vpipc\n");
@@ -74,11 +126,14 @@ static void mmio_bus_write(void *opaque, hwaddr offset, uint64_t value, unsigned
     /* setting vp transfer data*/
     vpt_send.type = VP_WRITE;
     vpt_send.length = size;
-    vpt_send.addr = offset;
+    vpt_send.addr = MMIO_ADDR + offset;
     vpt_send.data = value;
     /* blocking transfer */
+    qemu_mutex_lock(&s->mutex);
+    //printf("[QEMU] mmio_bus_write\n");
     vpt_recv = vp_b_transfer(&s->vpm, vpt_send);
-    
+    qemu_mutex_unlock(&s->mutex);
+
     /* check recv type and status */
     if(vpt_recv.type != VP_WRITE_RESP || vpt_recv.status != VP_OK){
         fprintf(stderr, "mmio_bus write error through the vpipc\n");
@@ -141,9 +196,8 @@ static void mmio_bus_realize(DeviceState *dev, Error **errp)
 static void mmio_bus_reset(DeviceState *dev)
 {
     printf("[DEBUG] mmio_bus_reset\n");
-    MMIOBusDevice *s = MMIO_BUS(dev);
+    //MMIOBusDevice *s = MMIO_BUS(dev);
     // Initialize the device
-
 }
 
 

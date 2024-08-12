@@ -2,11 +2,12 @@
 projects/
 FreeRTOS*/
 qemu*/
-riscv*/
+riscv-gnu-toolchain/
 linux/
 rv64-linux/
 opensbi/
 busybox/
+buildroot/
 
 # vscode
 .vscode/

@@ -11,7 +11,7 @@ private:
     struct vp_transfer vpt[3];
     struct vp_transfer vpt_resp;
 public:
-    tlm_utils::simple_initiator_socket<QEMU_CPU> socket;
+    tlm_utils::simple_initiator_socket<QEMU_CPU> socket_master;
 
     SC_CTOR(QEMU_CPU) : socket("socket") {
         SC_THREAD(thread_process);
@@ -21,13 +21,15 @@ public:
         // vpipc
         vpm = create_vp_module(MODULE_TYPE_CLIENT);
         int num;
-    
+
         while(1)
         {
             num = vp_wait(&vpm, vpt, 1);
             if(num > 0)
             {
-                //printf("Type: %s, Status: %ld, Address: 0x%016lx, Data: 0x%016lx\n", VP_Type_str[vpt[0].data.type], vpt[0].data.status, vpt[0].data.addr, vpt[0].data.data);
+#ifdef DEBUG
+                printf("Type: %s, Status: %ld, Address: 0x%016lx, Data: 0x%016lx\n", VP_Type_str[vpt[0].data.type], vpt[0].data.status, vpt[0].data.addr, vpt[0].data.data);
+#endif
                 vpt_resp.sock_fd = vpt[0].sock_fd;
                 switch (vpt[0].data.type)
                 {
@@ -83,7 +85,7 @@ public:
 
         return (uint64_t)data;
     }
-    
+
     void tlm_write(vp_transfer_data trans_data)
     {
         tlm::tlm_generic_payload trans;

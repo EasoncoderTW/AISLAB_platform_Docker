@@ -30,7 +30,7 @@ cat <<EOF
     startup get-riscv-gcc               : download riscv-gnu-toolchain Cross Compiler
     startup get-opensbi                 : download opensbi source code
     startup get-linux                   : download linux kernel source code
-    startup get-busybox                 : download busybox source code
+    startup get-buildroot               : download buildroot source code
     startup get-freertos                : download FreeRTOS source code
     ----------------   Build   --------------------------------------------------------------
     startup build-qemu                  : build qemu
@@ -38,7 +38,7 @@ cat <<EOF
     startup build-riscv-gcc             : build riscv-gnu-toolchain Cross Compiler
     startup build-opensbi               : build opensbi source code
     startup build-linux                 : build linux kernel source code
-    startup build-busybox               : build busybox source code
+    startup build-buildroot             : build buildroot source code
     ----------------   Task   --------------------------------------------------------------
     startup init                        : download and build all the above tools with default versions
     startup rebuild-qemu                : rebuild qemu from source code
@@ -62,56 +62,47 @@ build_qemu(){
         cd $mountdir/qemu/build || exit 1
         ../configure --enable-debug-info --target-list=riscv64-softmmu, --enable-virtfs || exit 1
         make -j $(nproc) || exit 1
-    } 
+    }
 }
 
 build_riscv_gcc(){
-    [[ -f $mountdir/rv64-linux/bin/riscv64-unknown-linux-gnu-gcc ]]  && { 
+    [[ -f $mountdir/rv64-linux/bin/riscv64-unknown-linux-gnu-gcc ]]  && {
         echo $(which riscv64-unknown-linux-gnu-gcc) exists
     } || {
         cd $mountdir/riscv-gnu-toolchain || exit 1
         ./configure --prefix=$mountdir/rv64-linux --with-arch=rv64gc --with-abi=lp64d --disable-gdb || exit 1
         make -j $(nproc) linux || exit 1
-    } 
+    }
 }
 
 build_opensbi(){
-    [[ -f $mountdir/opensbi/build/platform/generic/firmware/fw_jump.bin ]]  && { 
+    [[ -f $mountdir/opensbi/build/platform/generic/firmware/fw_jump.bin ]]  && {
         echo opensbi firmware exists
     } || {
         cd $mountdir/opensbi || exit 1
         make PLATFORM=generic CROSS_COMPILE=riscv64-unknown-linux-gnu- O=build -j$(nproc) || exit 1
         make -j $(nproc) linux || exit 1
-    } 
+    }
 }
 
 build_linux(){
-    [[ -f $mountdir/linux/arch/riscv/boot/Image ]]  && { 
+    [[ -f $mountdir/linux/arch/riscv/boot/Image ]]  && {
         echo linux kernel Image exists
     } || {
         cd $mountdir/linux || exit 1
         cp $mountdir/config/linux.config .config || exit 1
         make ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- -j $(nproc) || exit 1
         make -j $(nproc) linux || exit 1
-    } 
+    }
 }
 
-build_busybox(){
-    [[ -f $mountdir/busybox/root.ext2 ]]  && { 
-        echo busybox/root.ext2 exists
+build_buildroot(){
+    [[ -f $mountdir/buildroot/output/images/root.ext2 ]]  && {
+        echo buildroot/output/images/root.ext2 exists
     } || {
-        cd $mountdir/busybox || exit 1
-        cp $mountdir/config/busybox.config $mountdir/busybox/.config || exit 1
-        ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- make -j $(nproc) || exit 1
-        ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- make install || exit 1
-        echo ===================== Make Root File System ===================== || exit 1
-        dd if=/dev/zero of=root.ext2 bs=1M count=1024 || exit 1 # 1G
-        sudo mkfs.ext2 -F root.ext2 || exit 1
-        mkdir -p /tmp/root || exit 1
-        sudo mount root.ext2 /tmp/root || exit 1
-        sudo rsync -avr _install/* /tmp/root || exit 1
-        cd $mountdir/busybox  || exit 1
-        sudo umount /tmp/root || exit 1
+        cd $mountdir/buildroot || exit 1
+        cp $mountdir/config/buildroot.config $mountdir/buildroot/.config || exit 1
+        CROSS_COMPILE=riscv64-unknown-linux-gnu- make -j $(nproc) || exit 1
     }
 }
 
@@ -160,15 +151,14 @@ get_linux(){
     }
 }
 
-get_busybox(){
+get_buildroot(){
     top=$mountdir
-    dir=$top/busybox
+    dir=$top/buildroot
     [[ -d $dir ]] && {
         echo $dir exists
     } || {
-        git clone git://git.busybox.net/busybox $dir || exit 1
-        cd $mountdir/busybox || exit 1
-        git checkout -b 1_36_stable origin/1_36_stable || exit 1
+        git clone https://github.com/buildroot/buildroot.git $dir || exit 1
+        cd $mountdir/buildroot || exit 1
     }
 }
 
@@ -200,8 +190,8 @@ case $state in
     get-linux)
         get_linux
         ;;
-    get-busybox)
-        get_busybox
+    get-buildroot)
+        get_buildroot
         ;;
     build-qemu)
         build_qemu
@@ -215,8 +205,8 @@ case $state in
     build-linux)
         build_linux
         ;;
-    build-busybox)
-        build_busybox
+    build-buildroot)
+        build_buildroot
         ;;
     build-systemc)
         version=$arg1
@@ -237,8 +227,8 @@ case $state in
         build_opensbi
         get_linux
         build_linux
-        get_busybox
-        build_busybox
+        get_buildroot
+        build_buildroot
         qemu-system-riscv64 -machine help
         ;;
     help)
