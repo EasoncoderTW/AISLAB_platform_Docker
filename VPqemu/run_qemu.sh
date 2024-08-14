@@ -1,4 +1,4 @@
-./qemu-system-riscv64 -M aislab -m 256M -nographic \
+./qemu-system-riscv64 -M aislab -m 8G -nographic \
     -bios ./fw_jump.bin \
     -kernel ./Image \
     -drive file=./rootfs.ext2,format=raw,id=hd0 \

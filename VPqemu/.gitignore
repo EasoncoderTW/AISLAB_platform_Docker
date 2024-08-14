@@ -1,4 +1,0 @@
-fw_jump.bin
-Image
-qemu-system-riscv64
-root.ext2

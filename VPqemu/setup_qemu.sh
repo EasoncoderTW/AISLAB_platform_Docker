@@ -13,8 +13,10 @@ sudo mount rootfs.ext2 /tmp/root || exit 1
 
 cd /tmp/root && sudo cp /workspace/config/rcS etc/init.d/rcS || exit 1 # active script
 cd /tmp/root && sudo cp /workspace/config/bashrc ./root/.bashrc || exit 1 # bashrc
+cd /tmp/root && sudo cp /workspace/config/profile ./root/.profile || exit 1 # bashrc
 sudo chmod +x /tmp/root/etc/init.d/rcS || exit 1
 sudo chmod +x /tmp/root/root/.bashrc || exit 1
+sudo chmod +x /tmp/root/root/.profile || exit 1
 
 cd /workspace/VPqemu  || exit 1
 sudo umount /tmp/root || exit 1

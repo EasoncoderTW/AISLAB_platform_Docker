@@ -1,11 +1,11 @@
 /*
- *  Virtrul platform Inner-Process Communications 
- *  
+ *  Virtrul platform Inner-Process Communications
+ *
  *  Auther  : HSUAN-YU Yeh (Eason)
  *  Date    : 2024.07.24
  *  Version : v0.1
- * 
- * 
+ *
+ *
  */
 #ifndef VPIPC_PIPE_H
 #define VPIPC_PIPE_H
@@ -21,9 +21,9 @@
 #include <sys/epoll.h> // for epoll_create1()
 
 /*
- * 
+ *
  *  Type and Module define
- * 
+ *
  */
 
 #define VP_DEFAULT_PORT   7000
@@ -64,23 +64,23 @@ struct vp_transfer{
 #define MODULE_TYPE_CLIENT 1
 
 struct vp_ipc_module{
-    int type; 
+    int type;
     int epoll_fd;
     int sock_fd;
     int server_fd;
 };
 
 /*
- * 
+ *
  *  Basic Utils
- * 
+ *
  */
 
 /* Create a TCP server and return the socket fd */
 int create_vpipc_tcp_server(int port, const char* host, int max_connection);
 
-/* Create a TCP clinet and return the socket fd */
-int create_vpipc_clinet(int port, const char* host);
+/* Create a TCP client and return the socket fd */
+int create_vpipc_client(int port, const char* host);
 
 /* create epoll fd */
 int create_vpipc_epoll(void);

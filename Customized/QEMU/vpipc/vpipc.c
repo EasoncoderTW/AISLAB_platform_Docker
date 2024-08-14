@@ -1,11 +1,11 @@
 /*
- *  Virtrul platform Inner-Process Communications 
- *  
+ *  Virtrul platform Inner-Process Communications
+ *
  *  Auther  : HSUAN-YU Yeh (Eason)
  *  Date    : 2024.07.24
  *  Version : v0.1
- * 
- * 
+ *
+ *
  */
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -20,12 +20,12 @@
 #include "hw/misc/vpipc.h"
 
 /*
- * 
+ *
  *  Basic Utils
- * 
+ *
  */
 
-const char* VP_Type_str[] = 
+const char* VP_Type_str[] =
 {
     "VP_WRITE", "VP_READ", "VP_RAISE_IRQ",
     "VP_WRITE_RESP", "VP_READ_RESP", "VP_RAISE_IRQ_RESP",
@@ -71,8 +71,8 @@ int create_vpipc_tcp_server(int port, const char* host, int max_connection)
     return sock_fd;
 }
 
-/* Create a TCP clinet and return the socket fd */
-int create_vpipc_clinet(int port, const char* host)
+/* Create a TCP client and return the socket fd */
+int create_vpipc_client(int port, const char* host)
 {
     struct sockaddr_in serv_addr;
     int sock_fd;
@@ -129,7 +129,7 @@ void vp_epoll_add(int epoll_fd,int sock_fd, int events)
 
 /* initial a vp module */
 struct vp_ipc_module create_vp_module(int type)
-{  
+{
     // create socket
     struct vp_ipc_module vpm;
     vpm.type = type;
@@ -149,10 +149,10 @@ struct vp_ipc_module create_vp_module(int type)
     else
     {
         vpm.server_fd = -1;
-        vpm.sock_fd = create_vpipc_clinet(VP_DEFAULT_PORT, VP_DEFAULT_HOST);
+        vpm.sock_fd = create_vpipc_client(VP_DEFAULT_PORT, VP_DEFAULT_HOST);
         vp_epoll_add(vpm.epoll_fd,vpm.sock_fd,EPOLLIN);
     }
-    
+
     return vpm;
 }
 
@@ -166,7 +166,7 @@ void cleanup_vp_module(struct vp_ipc_module vpm)
 
 /* Non-blocking Wait for check if there is any transfer event */
 int vp_wait(struct vp_ipc_module *vpm, struct vp_transfer *vpt, int timeout)
-{ 
+{
     struct sockaddr_in client_addr;
     socklen_t addrlen = sizeof(client_addr);
     struct vp_transfer_data recv_vpt;
@@ -215,7 +215,7 @@ int vp_wait(struct vp_ipc_module *vpm, struct vp_transfer *vpt, int timeout)
 
     }
     else
-    {   
+    {
         /* client */
         //printf("[VPIPC] vp_wait client\n");
         int num_fds = epoll_wait(vpm->epoll_fd, events, 1, 1);

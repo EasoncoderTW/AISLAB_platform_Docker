@@ -1,6 +1,13 @@
+#ifndef QEMU_CPU_HPP
+#define QEMU_CPU_HPP
+
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/simple_initiator_socket.h>
+
+using namespace sc_core;
+using namespace sc_dt;
+using namespace std;
 
 /* vpipc */
 #include "vpipc/vpipc.h"
@@ -13,7 +20,7 @@ private:
 public:
     tlm_utils::simple_initiator_socket<QEMU_CPU> socket_master;
 
-    SC_CTOR(QEMU_CPU) : socket("socket") {
+    SC_CTOR(QEMU_CPU) : socket_master("socket") {
         SC_THREAD(thread_process);
     }
 
@@ -77,7 +84,7 @@ public:
         uint32_t data = 0;
         trans.set_data_ptr(reinterpret_cast<unsigned char*>(&data));
 
-        socket->b_transport(trans, delay);
+        socket_master->b_transport(trans, delay);
 
         if (trans.is_response_error()) {
             SC_REPORT_ERROR("TLM-2", "Response error from b_transport");
@@ -102,7 +109,7 @@ public:
         uint32_t data = (uint32_t)trans_data.data;
         trans.set_data_ptr(reinterpret_cast<unsigned char*>(&data));
 
-        socket->b_transport(trans, delay);
+        socket_master->b_transport(trans, delay);
 
         if (trans.is_response_error()) {
             SC_REPORT_ERROR("TLM-2", "Response error from b_transport");
@@ -110,3 +117,5 @@ public:
 
     }
 };
+
+#endif

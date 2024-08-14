@@ -28,6 +28,7 @@ static void *tcp_thread_func(void *opaque) {
     int num;
     struct vp_transfer vpt[3];
     struct vp_transfer vpt_resp;
+    uint64_t value;
 
     qemu_mutex_lock(&dev->mutex);
     while (dev->thread_running) {
@@ -45,7 +46,7 @@ static void *tcp_thread_func(void *opaque) {
                 case VP_WRITE:
                     // Use CPU physical addreass write
                     // (hwaddr addr, void buf, hwaddr len)
-                    uint64_t value = (vpt[i].data.data);
+                    value = (vpt[i].data.data);
                     cpu_physical_memory_write(vpt[i].data.addr, &value, vpt[i].data.length);
                     vpt_resp.data.type = VP_WRITE_RESP;
                     vpt_resp.data.status = VP_OK;
@@ -54,7 +55,6 @@ static void *tcp_thread_func(void *opaque) {
                 case VP_READ:
                     // Use CPU physical addreass reads
                     // (hwaddr addr, void buf, hwaddr len)
-                    uint64_t value;
                     cpu_physical_memory_read(vpt[i].data.addr, &value, vpt[i].data.length);
                     vpt_resp.data.data = value;
                     vpt_resp.data.type = VP_READ_RESP;
