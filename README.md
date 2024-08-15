@@ -167,7 +167,7 @@ See [`doc/VPIPC.md`](./doc/VPIPC.md`) for moer information.
 ## VP Development (Optimize VP IPC etc.)
 Clone
 ```sh
-$ git clone https://github.com/EasoncoderTW/aislabvp.git aislabvp
+$ git clone https://aislab.ee.ncku.edu.tw/EasonYeh/aislabvp.git aislabvp
 $ cd aislabvp
 ```
 Run Docker
