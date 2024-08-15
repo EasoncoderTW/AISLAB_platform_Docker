@@ -1,4 +1,4 @@
-# AISLAB QEMU-systemC co-design Simulator
+# AISLAB QEMU-SystemC Co-Design Simulator
 
 - Auther - EasonYeh, Yuting
 - Version - v1.0.0
@@ -18,9 +18,28 @@
 ## Quick Start
 This section will tell you how to download release zip, boot up virtual platform in Docker quickly and easily, including install systemC library and setup environment.
 
-Download Release zip
+Use GitLab Personal Access Token
+- generate GitLab Personal Access Token, and use it in `wget`。
+- click the avatar, selet `Edit profile`\
+ \
+ ![access_token_1](./doc/image/access_token_1.png)
+
+- click `Access Token` on the left
+- click `Add new token` \
+\
+![access_token_2](./doc/image/access_token_2.png)
+- Enter token name and select `api` (Expiration date is optional)\
+\
+![access_token_3](./doc/image/access_token_3.png)
+
+- click blue button `Create personal access token`
+- **Remeber to copy and save the token, it would not show again !!!**\
+\
+![access_token_4](./doc/image/access_token_4.png)
+
+Download Release zip (replace `<your_access_token>` to **your token**)
 ```sh
-$ wget https://github.com/EasoncoderTW/aislabvp/archive/refs/tags/v1.0.0.tar.gz
+$ wget --header="PRIVATE-TOKEN: <your_access_token>"  https://aislab.ee.ncku.edu.tw/EasonYeh/aislabvp/-/archive/v1.0.0/aislabvp-v1.0.0.tar.gz
 $ tar -xzf v1.0.0.tar.gz
 $ cd aislabvp-v1.0.0
 ```
@@ -31,26 +50,40 @@ $ ./run-docker.sh
 Install GNU cross-compiler (rv64)
 ```sh
 # In Docker
-$ startup get-riscv-gcc
-$ startup build-riscv-gcc
+$ sudo startup get-riscv-gcc
+$ sudo startup build-riscv-gcc
 ```
 Install SystemC
 ```sh
 # In Docker
-$ cd module/systemc
-$ ./systemc.sh
-$ module load ./2.3.3
+$ sudo /workspace/modules/systemc/systemc.sh
+$ module load /workspace/modules/systemc/2.3.3
 ```
-## Boot up Virtual Platform
-aislabvp has its own qemu virtual machine, including a MMIO device that has TCP/IP socket, which can achieve Inner Process Communications.
+## Boot Up Virtual Platform
+aislabvp has its own QEMU virtual machine, including an MMIO device with TCP/IP socket, which can achieve Inter Process Communications.
 
-To co-simulate both qemu and systemC, we need two terminals, we boot up linux on qemu in first one
+To co-simulate with both QEMU and SystemC, we need two terminals (using tmux and split to 2 panes)
 ```sh
 # In docker env
+$ tmux -s "AISVP"
+# press ctrl+B, relese, and then press '%' (shift + 5) : split pane horizontally
+# press ctrl+B, relese, and then press right key : select right pane
+# press ctrl+B, relese, and then press left key : select left pane
+# press ctrl+B, relese, and then press '[' : active scroll mode (press 'q' to exit)
+# press ctrl+B, relese, and then press 'd' : detach session
+```
+If session `AISVP` exists, attach back
+```sh
+$ tmux a -t "AISVP"
+```
+Boot up linux on QEMU in first one
+```sh
+# In docker env (left tmux pane)
+$ bash
 $ cd /workspace/VPqemu
 $ ./run_qemu.sh
 ```
-You will see qemu waiting for systemC program to connet (halt and wait)
+You will see QEMU waiting for systemC program to connet (halt and wait)
 ```
 [DEBUG] mmio_bus_class_init
 [DEBUG] mmio_bus_instance_init
@@ -60,11 +93,11 @@ You will see qemu waiting for systemC program to connet (halt and wait)
 ```
 Then, we start SystemC simulation in second terminal
 ```sh
-# In docker env
+# In docker env (right tmux pane)
 $ cd /workspace/VPsystemC
 $ ./demo/test_mmio/main # for example device (Memory)
 ```
-After that, qemu would keep running and boot up linux successfully, and login with `root`
+After that, QEMU would keep running and boot up linux successfully, and login with `root`
 ```sh
 [    0.605892] VFS: Mounted root (ext2 filesystem) on device 254:0.
 [    0.608744] devtmpfs: mounted
@@ -83,31 +116,42 @@ Welcome to Buildroot
 aislabvp login: root  # login with root
 (root)root@aislabvp:~#
 ```
-To stop simulation, just turn off the qemu.
+To stop simulation, just turn off the QEMU.
 ```
 (root)root@aislabvp:~# poweroff
 ```
 Then, the IPC between two process will be disconnect
 SystemC module can be set to stop automatically or manually.
 
-## Software development (Appilcation and Driver on Linux)
-This section will illustrate how to develop software in qemu.
-- To minimize the size of Rootfs, we do not have gcc in qemu linux, so we need to compile programs outside.
-- aislapvp has shared folder between the qemu (`/mnt/shared`) and docker env (`/workspace/VPqemu/shared`), software developer can build your own progeams in it, then boot up vp as previous section.
+Another quick method - `tmux.sh`
+- We provide `tmux.sh` to simplify the above process.
+```
+# In docker env (right tmux pane)
+$ /workspace/tmux.sh
+```
+
+## Software Development (Appilcation and Driver on Linux)
+This section will illustrate how to develop software in QEMU.
+- To minimize the size of Rootfs, we do not have gcc in QEMU linux, so we need to compile programs outside.
+- aislabvp has shared folder between the QEMU (`/mnt/shared`) and docker env (`/workspace/VPqemu/shared`), software developer can build your own progeams in it, then boot up vp as previous section.
 - Compile program with gcc - example `helloworld`
 ```sh
 # In docker env
 $ cd /workspace/VPqemu/shared/demo/helloworld
 $ riscv64-unknown-linux-gnu-gcc ./helloworld.c -o helloworld
 ```
-- boot up vp and run the program
+- Boot up vp and run the program
 ```
-# In qemu
+# In QEMU
 $ cd /mnt/shared/demo/helloworld
-$ ./helloworld # > hello world
+$ ./main
+```
+- Result will be
+```
+hello world
 ```
 
-## Hardware development (SystemC hardware design)
+## Hardware Development (SystemC Hardware Design)
 This section will illustrate how to develop hardware using `QEMU_CPU` module.
 - `QEMU_CPU` is a systemC TLM 2.0 module with `VPIPC` socket to connent to VP QEMU.
 - `QEMU_CPU` support MMIO R/W event passing from QEMU to systemC.
@@ -117,10 +161,10 @@ This section will illustrate how to develop hardware using `QEMU_CPU` module.
     - To activate `slave_socket` (be compiled in program), add `-DDMA` when compiling
 - No MMU or IOMMU in `QEMU_CPU`, you can design it if you need.
 
-## Hardware development (VPIPC protocol)
+## Hardware Development (VPIPC Protocol)
 See [`doc/VPIPC.md`](./doc/VPIPC.md`) for moer information.
 
-## VP development (Optimize VP IPC etc.)
+## VP Development (Optimize VP IPC etc.)
 Clone
 ```sh
 $ git clone https://github.com/EasoncoderTW/aislabvp.git aislabvp
@@ -130,7 +174,7 @@ Run Docker
 ```sh
 $ ./run-docker.sh
 ```
-## Startup usage
+## Startup Usage
 In shell, just type `startup` and you can see the help information.
 ```sh
 # In docker env
